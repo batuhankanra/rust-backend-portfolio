@@ -1,10 +1,9 @@
 mod routes;
 mod app;
-
+mod  middleware;
 
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::fmt::init();
     dotenvy::dotenv().ok();
     app::run().await
 }
