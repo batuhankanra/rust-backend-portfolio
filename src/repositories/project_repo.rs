@@ -1,18 +1,17 @@
+use crate::error::AppError;
 use crate::{database::mongodb::MongoRepo, models::projects::Project};
 use chrono::Utc;
+use futures::TryStreamExt;
 use mongodb::bson::oid::ObjectId;
 use mongodb::results::{DeleteResult, InsertOneResult, UpdateResult};
 use mongodb::bson::doc;
-use futures::stream::StreamExt;
 
 
 pub struct ProjectRepository;
 
 impl ProjectRepository {
-    pub async fn update_project(db:&MongoRepo,id:&str,updated_data:Project)->Result<UpdateResult,mongodb::error::Error>{
-        let obj_id=ObjectId::parse_str(id).map_err(|_|{
-            mongodb::error::Error::custom("Geçersiz id")
-        })?;
+    pub async fn update_project(db:&MongoRepo,id:&str,updated_data:Project)->Result<UpdateResult,AppError>{
+        let obj_id=ObjectId::parse_str(id).map_err(|_| AppError::InvalidId(id.to_string()))?;
         let update_doc=doc! {
             "$set":{
                 "title": updated_data.title,
@@ -22,51 +21,55 @@ impl ProjectRepository {
                 "live_url": updated_data.live_url,
             }
         };
-        db.db
+        let res=db.db
             .collection::<Project>("projects")
             .update_one(doc! {"_id":obj_id}, update_doc)
-            .await
+            .await?;
+        if res.matched_count==0{
+            return Err(AppError::NotFound);
+        }
+        Ok(res)
     }
-    pub async fn delete_project(db:&MongoRepo,id:&str)->Result<DeleteResult,mongodb::error::Error>{
-        let obj_id=ObjectId::parse_str(id).map_err(|_|{
-            mongodb::error::Error::custom("Geçersiz ID")
-        })?;
-        db.db
+    pub async fn delete_project(db:&MongoRepo,id:&str)->Result<DeleteResult,AppError>{
+        let obj_id=ObjectId::parse_str(id).map_err(|_| AppError::InvalidId(id.to_string()))?;
+        let filter=doc! {"_id":obj_id};
+        let res=db.db
             .collection::<Project>("projects")
-            .delete_one(doc! {"_id":obj_id})
-            .await
+            .delete_one(filter)
+            .await?;
+        if res.deleted_count==0{
+            return Err(AppError::NotFound);
+        }
+        Ok(res)
     }
-    pub async fn create_project(db:&MongoRepo,mut new_project:Project)->Result<InsertOneResult,mongodb::error::Error>{
+    pub async fn create_project(db:&MongoRepo,mut new_project:Project)->Result<InsertOneResult,AppError>{
         new_project.created_at=Some(Utc::now());
         new_project.updated_at=Some(Utc::now());
-        db.db
+        let res=db.db
             .collection::<Project>("projects")
             .insert_one(new_project)
-            .await
+            .await?;
+        Ok(res)
     }
-    pub async  fn get_all_project(db:&MongoRepo)->Result<Vec<Project>,mongodb::error::Error>{
-        let mut cursors=db.db
-            .collection::<Project>("projects").find(doc! {}).await?;
-        let mut projectss:Vec<Project>=Vec::new();
-        while let Some(result)=cursors.next().await {
-            match result {
-                Ok(project)=>projectss.push(project),
-                Err(e)=>return Err(e)
-            }
-        }
+    pub async  fn get_all_project(db:&MongoRepo)->Result<Vec<Project>,AppError>{
+        let cursors=db.db
+            .collection::<Project>("projects")
+            .find(doc! {}).await?;
+        let projectss:Vec<Project>=cursors.try_collect().await?;
+       
         Ok(projectss)
     }
 
-    pub async fn get_project_by_id(db:&MongoRepo,id:&str)->Result<Option<Project>,mongodb::error::Error>{
-        let obj_id = ObjectId::parse_str(id).map_err(|_| {
-            mongodb::error::Error::custom("Geçersiz ID formatı")
-        })?;
+    pub async fn get_project_by_id(db:&MongoRepo,id:&str)->Result<Project,AppError>{
+        let obj_id = ObjectId::parse_str(id).map_err(|_| AppError::InvalidId(id.to_string()))?;
 
         let filter = doc! { "_id": obj_id };
-        db.db
+        let project=db.db
             .collection::<Project>("projects")
             .find_one(filter)
-            .await
+            .await?
+            .ok_or(AppError::NotFound)?;
+        Ok(project)
 
     }
 }
