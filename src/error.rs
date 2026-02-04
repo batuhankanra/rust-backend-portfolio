@@ -3,12 +3,11 @@ use axum::{
     extract::rejection::JsonRejection,
     http::StatusCode,
     response::{IntoResponse, Response},
-    Json, // Axum Json wrapper'ı
+    Json, 
 };
 use serde_json::json;
 use thiserror::Error;
 
-// 1. Hata Tiplerini Tanımlıyoruz
 #[derive(Error, Debug)]
 pub enum AppError {
     #[error("Veritabanı hatası: {0}")]
@@ -23,14 +22,12 @@ pub enum AppError {
     JsonRejection(String),
 }
 
-// 2. Hata -> HTTP Yanıtı Dönüşümü
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         let (status, error_message) = match self {
             AppError::MongoError(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
             AppError::InvalidId(id) => (StatusCode::BAD_REQUEST, format!("Geçersiz ID: {}", id)),
             AppError::NotFound => (StatusCode::NOT_FOUND, "Kayıt bulunamadı".to_string()),
-            // Gelen string mesajı olduğu gibi alıyoruz
             AppError::JsonRejection(msg) => (StatusCode::BAD_REQUEST, msg),
         };
 
