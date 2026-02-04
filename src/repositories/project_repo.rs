@@ -1,7 +1,7 @@
 use crate::{database::mongodb::MongoRepo, models::projects::Project};
 use chrono::Utc;
 use mongodb::bson::oid::ObjectId;
-use mongodb::results::InsertOneResult;
+use mongodb::results::{DeleteResult, InsertOneResult, UpdateResult};
 use mongodb::bson::doc;
 use futures::stream::StreamExt;
 
@@ -9,6 +9,33 @@ use futures::stream::StreamExt;
 pub struct ProjectRepository;
 
 impl ProjectRepository {
+    pub async fn update_project(db:&MongoRepo,id:&str,updated_data:Project)->Result<UpdateResult,mongodb::error::Error>{
+        let obj_id=ObjectId::parse_str(id).map_err(|_|{
+            mongodb::error::Error::custom("Geçersiz id")
+        })?;
+        let update_doc=doc! {
+            "$set":{
+                "title": updated_data.title,
+                "description": updated_data.description,
+                "tech_stack": updated_data.tech_stack,
+                "github_url": updated_data.github_url,
+                "live_url": updated_data.live_url,
+            }
+        };
+        db.db
+            .collection::<Project>("projects")
+            .update_one(doc! {"_id":obj_id}, update_doc)
+            .await
+    }
+    pub async fn delete_project(db:&MongoRepo,id:&str)->Result<DeleteResult,mongodb::error::Error>{
+        let obj_id=ObjectId::parse_str(id).map_err(|_|{
+            mongodb::error::Error::custom("Geçersiz ID")
+        })?;
+        db.db
+            .collection::<Project>("projects")
+            .delete_one(doc! {"_id":obj_id})
+            .await
+    }
     pub async fn create_project(db:&MongoRepo,mut new_project:Project)->Result<InsertOneResult,mongodb::error::Error>{
         new_project.created_at=Some(Utc::now());
         new_project.updated_at=Some(Utc::now());
