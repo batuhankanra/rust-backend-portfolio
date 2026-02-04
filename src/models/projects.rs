@@ -12,6 +12,6 @@ pub struct Project{
     pub tech_stack:Vec<String>,
     pub github_url:Option<String>,
     pub live_url:Option<String>,
-    pub created_at:DateTime<Utc>,
-    pub updated_at:DateTime<Utc>
+    pub created_at:Option<DateTime<Utc>>,
+    pub updated_at:Option<DateTime<Utc>>
 }

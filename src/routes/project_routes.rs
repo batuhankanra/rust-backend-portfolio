@@ -10,5 +10,6 @@ pub fn static_routes()->Router<Arc<MongoRepo>>{
         .route("/hello-world",get(|| async {"Portfolio backend:hello world"}))
         .route("/list", get(project_handlers::list_projects))
         .route("/add", post(project_handlers::add_projects))
+        .route("/{id}", get(project_handlers::get_project))
     
 }
