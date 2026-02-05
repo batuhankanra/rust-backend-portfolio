@@ -1,19 +1,17 @@
 use axum::{
-    body::Body,
-    http::Request,
-    middleware::Next,
-    response::{ Response}
+    body::Body, extract::ConnectInfo, http::Request, middleware::Next, response::Response
 };
-use std::time::Instant;
+use std::{net::SocketAddr, time::Instant};
 use chrono::Local;
 
-pub async fn logger_middleware(req:Request<Body>,next:Next)->Response {
+pub async fn logger_middleware(ConnectInfo(addr):ConnectInfo<SocketAddr>,req:Request<Body>,next:Next)->Response {
     let start=Instant::now();
     let method=req.method().clone();
     let uri=req.uri().clone();
     let response=next.run(req).await;
     let latency =start.elapsed();
     let status=response.status();
+    let ip =addr.ip();
     let now =Local::now().format("%Y-%m-%d %H:%M:%S");
 
     
@@ -32,15 +30,16 @@ let method_style = match method.as_str() {
     };
     let reset = "\x1b[0m"; // Renkleri sıfırla
     println!(
-    "{} | INFO  | {}{:<6}{} | {:<20} | {:>8?} | {}{:6}{}",
-    now,
-    method_style, method.as_str(), reset, // Arka plan burada boyanır
-    uri.path(),
-    latency,
-    status_color,
-    status.as_u16(),
-    reset
-);
+        "{} | INFO | {}{:<6}{} | {:<15} | {:<20} | {:>8?} | {}{:6}{}",
+        now,
+        method_style, method.as_str(), reset,
+        format!("IP: {}", ip), 
+        uri.path(),
+        latency,
+        status_color,
+        status.as_u16(),
+        reset
+    );
 
     response
 }

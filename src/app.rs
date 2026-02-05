@@ -1,4 +1,6 @@
+use axum::http::{Method};
 use axum::{Router, middleware};
+use tower_http::cors::{CorsLayer};
 use std::net::SocketAddr;
 use std::sync::Arc;
 
@@ -10,15 +12,21 @@ use crate::config::env::Config;
 pub async fn run() {
     let config = Config::init();
     
-    // Veritabanını başlat ve State olarak hazırla
+
+
     let db = MongoRepo::init().await;
     let app_state = Arc::new(db);
 
-    // Uygulama rotaları ve katmanları
+    let cors =CorsLayer::new()
+        .allow_methods([Method::GET,Method::POST,Method::PUT,Method::DELETE])
+        .allow_origin("http://localhost:3000".parse::<axum::http::HeaderValue>().unwrap())
+        .allow_headers([axum::http::header::CONTENT_TYPE]);
+
     let app = Router::new()
         .nest("/api", project_routes::static_routes())
-        .layer(middleware::from_fn(logger_middleware)) // Renkli log middleware'imiz
-        .with_state(app_state); // Veritabanını tüm handler'lara enjekte et
+        .layer(middleware::from_fn(logger_middleware)) 
+        .with_state(app_state)
+        .layer(cors); 
 
     let addr_str = format!("127.0.0.1:{}", config.server_port);
     let addr: SocketAddr = addr_str.parse().expect("Geçersiz adres!");
@@ -26,5 +34,5 @@ pub async fn run() {
     println!("\x1b[1;37;44m 🚀 SERVER RUNNING \x1b[0m \x1b[34m http://{}\x1b[0m", addr);
     
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>()).await.unwrap();
 }
