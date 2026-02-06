@@ -5,8 +5,8 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use crate::database::mongodb::MongoRepo;
-use crate::middleware::logger_middleware;
-use crate::routes::project_routes;
+use crate::middleware::logger::logger_middleware;
+use crate::routes::{create_router};
 use crate::config::env::Config;
 
 pub async fn run() {
@@ -23,9 +23,8 @@ pub async fn run() {
         .allow_headers([axum::http::header::CONTENT_TYPE]);
 
     let app = Router::new()
-        .nest("/api", project_routes::static_routes())
+        .nest("/api", create_router(Arc::clone(&app_state)))
         .layer(middleware::from_fn(logger_middleware)) 
-        .with_state(app_state)
         .layer(cors); 
 
     let addr_str = format!("127.0.0.1:{}", config.server_port);

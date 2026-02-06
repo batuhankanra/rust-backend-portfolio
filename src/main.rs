@@ -7,6 +7,7 @@ mod models;
 mod repositories;
 mod handlers;
 mod error;
+mod auth;
 
 #[tokio::main]
 async fn main() {

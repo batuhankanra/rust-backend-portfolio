@@ -20,6 +20,14 @@ pub enum AppError {
     NotFound,
     #[error("{0}")]
     JsonRejection(String),
+    #[error("Bu kullanıcı adı zaten alınmış")]
+    UserAlreadyExists,
+    #[error("şifre işlenemedi")]
+    HashError,
+    #[error("Kayıt olmanız gerekiyor")] 
+    Unauthorized,
+    #[error("Yetkiniz yok")] 
+    Forbidden,
 }
 
 impl IntoResponse for AppError {
@@ -28,7 +36,12 @@ impl IntoResponse for AppError {
             AppError::MongoError(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
             AppError::InvalidId(id) => (StatusCode::BAD_REQUEST, format!("Geçersiz ID: {}", id)),
             AppError::NotFound => (StatusCode::NOT_FOUND, "Kayıt bulunamadı".to_string()),
-            AppError::JsonRejection(msg) => (StatusCode::BAD_REQUEST, msg),
+            AppError::JsonRejection(msg) => (StatusCode::BAD_REQUEST, msg.clone()),
+            AppError::UserAlreadyExists=>(StatusCode::CONFLICT,self.to_string()),
+            AppError::HashError=>(StatusCode::INTERNAL_SERVER_ERROR,self.to_string()),
+            AppError::Unauthorized=>(StatusCode::UNAUTHORIZED,self.to_string()),
+            AppError::Forbidden=>(StatusCode::FORBIDDEN,self.to_string())
+
         };
 
         // Cevabın bir JSON objesi olmasını garanti ediyoruz
